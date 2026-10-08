@@ -8,3 +8,4 @@
   from = "/"
   to = "/serdar-web-studio-standalone.html"
   status = 200
+  force = true
