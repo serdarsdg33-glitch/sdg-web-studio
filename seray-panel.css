@@ -71,13 +71,14 @@ html[dir=rtl] .site-back>span:first-child{transform:rotate(180deg)}
 .site-quote-grid{grid-template-columns:1fr;max-width:860px}
 #work.section{padding-top:38px}
 @media(max-width:1280px){
-.header{margin-bottom:68px}
-.header .nav,.header .nav.open{display:flex!important;position:absolute;inset:calc(100% + 8px) 0 auto!important;flex-direction:row!important;align-items:center;gap:6px!important;grid-template-columns:none;padding:8px;background:rgba(255,255,255,.97);border:1px solid #d7ebf5;border-radius:15px;box-shadow:0 9px 25px #14537e12;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;scrollbar-color:#b7ddec transparent;-webkit-overflow-scrolling:touch}
-.header .nav a,.header .nav .nav-cta{padding:10px 13px;min-height:42px;background:#f3faff;font-size:12px;grid-column:auto;scroll-snap-align:start}
+.header .nav{display:none!important;position:absolute;inset:calc(100% + 8px) 0 auto!important;flex-direction:column!important;align-items:stretch;gap:7px!important;grid-template-columns:none;padding:10px;background:rgba(255,255,255,.98);border:1px solid #d7ebf5;border-radius:16px;box-shadow:0 14px 35px #14537e18;max-height:calc(100dvh - 130px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.header .nav.open{display:flex!important}
+.header .nav a,.header .nav .nav-cta{width:100%;justify-content:flex-start;gap:12px;padding:13px 16px;min-height:48px;background:#f3faff;font-size:14px;grid-column:auto;text-align:start;white-space:normal;overflow-wrap:anywhere}
+.header .nav a span{min-width:0}
 .header .nav a[aria-current=page]{background:#dff3fc;color:#087aaf}
-.header .menu{display:none!important}
-section[id]{scroll-margin-top:190px}
-.site-viewbar{margin-top:26px}
+.header .nav .nav-cta{border-color:#bde0f2;background:#eaf8ff;color:#0879b0;font-weight:700}
+.header .menu{display:block!important}
+.header .menu:focus-visible{outline:3px solid #05a6d0;outline-offset:3px}
 }
 @media(max-width:700px){
 .site-discover-grid{grid-template-columns:1fr;gap:16px}
@@ -88,6 +89,6 @@ section[id]{scroll-margin-top:190px}
 .site-discover .site-social-logos svg{width:35px;height:35px;padding:7px;border-radius:14px}
 .site-work-preview img{height:86px}
 #work.section{padding-top:32px}
-section[id]{scroll-margin-top:160px}
+section[id]{scroll-margin-top:105px}
 }
 @media(prefers-reduced-motion:reduce){.site-discover *, .nav *{scroll-behavior:auto!important}}
