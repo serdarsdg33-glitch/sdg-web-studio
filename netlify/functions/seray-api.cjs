@@ -27,12 +27,15 @@ async function db(c,path,method='GET',body){
  return r.data;
 }
 const rpc=(c,name,args)=>db(c,'rpc/'+name,'POST',args);
-const cookie=(name,value,age)=>`${name}=${encodeURIComponent(value)}; Path=/.netlify/functions/seray-api; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;
+const cookie=(name,value,age)=>{
+ const expires=new Date(age>0?Date.now()+(age*1000):0).toUTCString();
+ return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}; Expires=${expires}`;
+};
 function setSession(headers,s){
  if(typeof s.access_token!=='string'||typeof s.refresh_token!=='string')throw fail('SESSION_INVALID',401);
  headers['Set-Cookie']=[cookie('seray_access',s.access_token,Math.min(s.expires_in||3600,7200)),cookie('seray_refresh',s.refresh_token,2592000)];
 }
-function cookies(event){const out={};for(const p of (event.headers.cookie||'').split(';')){const at=p.indexOf('=');if(at>0){try{out[p.slice(0,at).trim()]=decodeURIComponent(p.slice(at+1));}catch(_){}}}return out;}
+function cookies(event){const out={};const raw=event.headers.cookie||event.headers.Cookie||'';for(const p of raw.split(';')){const at=p.indexOf('=');if(at>0){try{out[p.slice(0,at).trim()]=decodeURIComponent(p.slice(at+1));}catch(_){}}}return out;}
 async function user(c,event,headers){
  const ck=cookies(event);let token=ck.seray_access,r=token?await auth(c,'user',undefined,token):null;
  if(!r?.ok&&ck.seray_refresh){const renew=await auth(c,'token?grant_type=refresh_token',{refresh_token:ck.seray_refresh});if(renew.ok){setSession(headers,renew.data);token=renew.data.access_token;r=await auth(c,'user',undefined,token);}}
@@ -96,7 +99,7 @@ async function syncOrder(c,id){
  await rpc(c,'seray_update_order',{p_id:id,p_status:status,p_refund_total:refund});return {status};
 }
 exports.handler=async event=>{
- const c=settings(),headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
+ const c=settings(),headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
  const respond=(status,body)=>({statusCode:status,headers:{...headers,...(!headers['Set-Cookie']?{}:{})},...(headers['Set-Cookie']?{multiValueHeaders:{'Set-Cookie':headers['Set-Cookie']}}:{}),body:JSON.stringify(body)});
  // Cookies belong in multiValueHeaders; never combine them into a single header.
  const response=(status,body)=>{const r=respond(status,body);delete r.headers['Set-Cookie'];return r;};
