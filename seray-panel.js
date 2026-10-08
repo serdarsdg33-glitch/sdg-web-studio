@@ -25,7 +25,7 @@ const localDate=v=>new Date(v).toLocaleString(lang);
 function status(key,error=false){$('sp-status').textContent=key?t(key):'';$('sp-status').dataset.error=String(error);}
 function err(e){const key={LOGIN_FAILED:'signinError',VERIFY_EMAIL:'verify',INSUFFICIENT_BALANCE:'insufficient',PRICE_CHANGED:'priceChanged',INVALID_LINK:'invalidLink',INVALID_QUANTITY:'invalidQuantity',SERVICE_UNAVAILABLE:'unavailable',PAYMENT_NOT_CONFIGURED:'paymentMissing',PROVIDER_NOT_CONFIGURED:'providerMissing',PROVIDER_REVIEW_REQUIRED:'providerReview',SETUP_REQUIRED:'setup',PASSWORD_MISMATCH:'passwordMismatch'}[e.code]||'failed';status(key,true);if(e.code==='LOGIN_REQUIRED'){state=null;render();status('loginFirst',true);}return key;}
 async function api(action,payload={}){
- const operation=async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);try{const r=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload}),signal:controller.signal});const data=await r.json();if(!r.ok){const e=new Error(data.error||'FAILED');e.code=data.error;throw e;}return data;}finally{clearTimeout(timer);}};
+ const operation=async()=>{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);try{const r=await fetch(endpoint,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload}),signal:controller.signal});const data=await r.json();if(!r.ok){const e=new Error(data.error||'FAILED');e.code=data.error;throw e;}return data;}finally{clearTimeout(timer);}};
  const p=queue.then(operation);queue=p.catch(()=>{});return p;
 }
 async function run(button,work){if(busy)return;busy=true;if(button)button.disabled=true;status('loading');try{await work();}catch(e){err(e);}finally{busy=false;if(button)button.disabled=false;updatePaid();}}
@@ -105,7 +105,7 @@ tabs('[data-auth-tab]',b=>authTab(b.dataset.authTab));tabs('[data-sp-tab]',b=>sw
 document.querySelectorAll('.flag-button').forEach(b=>b.addEventListener('click',()=>queueMicrotask(translate)));
 document.addEventListener('seray:selection',updatePaid);translate();
 async function boot(){
- try{const r=await fetch(endpoint,{credentials:'same-origin',cache:'no-store'});if(!r.ok)return;const config=await r.json();ready=config.ready===true;if(!ready)return;
+ try{const r=await fetch(endpoint,{credentials:'include',cache:'no-store'});if(!r.ok)return;const config=await r.json();ready=config.ready===true;if(!ready)return;
   const fragment=authFragment;const access=fragment.get('access_token'),refreshToken=fragment.get('refresh_token'),recovery=fragment.get('type')==='recovery';
   if(access&&refreshToken){history.replaceState(null,'',location.pathname+location.search+'#account');await api('session',{access_token:access,refresh_token:refreshToken});if(recovery)tab='settings';}
   catalog=(await api('catalog')).services;
