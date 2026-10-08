@@ -15,7 +15,15 @@ function settings(){
 }
 async function request(url,options){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
- try{const r=await fetch(url,{...options,signal:controller.signal});let data;try{data=await r.json();}catch(_){throw fail('UPSTREAM_UNAVAILABLE',502);}return {ok:r.ok,status:r.status,data};}
+ try{
+  const r=await fetch(url,{...options,signal:controller.signal});let data=null;
+  if(typeof r.text==='function'){
+   const raw=await r.text();if(raw){try{data=JSON.parse(raw);}catch(_){throw fail('UPSTREAM_UNAVAILABLE',502);}}
+  }else if(typeof r.json==='function'){
+   try{data=await r.json();}catch(_){throw fail('UPSTREAM_UNAVAILABLE',502);}
+  }
+  return {ok:r.ok,status:r.status,data};
+ }
  catch(e){if(e.status)throw e;throw fail('UPSTREAM_UNAVAILABLE',502);}finally{clearTimeout(timer);}
 }
 function auth(c,path,body,token){return request(c.url+'/auth/v1/'+path,{method:body===undefined?'GET':'POST',headers:{apikey:c.key,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});}
