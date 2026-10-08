@@ -16,8 +16,11 @@ ru:['Мой аккаунт','Обновить','Выйти','Панель акк
 const translations=Object.fromEntries(Object.entries(packs).map(([lang,values])=>[lang,Object.fromEntries(keys.map((key,i)=>[key,values[i]]))]));
 const quantityLabels={en:'Quantity',fa:'تعداد',ar:'الكمية',az:'Miqdar',tr:'Miktar',de:'Menge',es:'Cantidad',fr:'Quantité',ru:'Количество','zh-CN':'数量'};for(const [locale,label] of Object.entries(quantityLabels))translations[locale].quantity=label;
 const notReceived={en:'I checked the supplier panel: no order was created. Release for manual review.',fa:'پنل تأمین‌کننده را بررسی کردم: سفارشی ثبت نشده است. آزادسازی برای رسیدگی دستی.',ar:'راجعت لوحة المورّد: لم يُنشأ طلب. إتاحة المعالجة اليدوية.',az:'Təchizatçı panelini yoxladım: sifariş yaradılmayıb. Əl ilə baxışa burax.',tr:'Sağlayıcı panelini kontrol ettim: sipariş oluşmadı. Manuel incelemeye aç.',de:'Anbieterpanel geprüft: Keine Bestellung erstellt. Zur manuellen Bearbeitung freigeben.',es:'He revisado el proveedor: no se creó un pedido. Liberar para revisión manual.',fr:'Panneau du fournisseur vérifié : aucune commande créée. Autoriser le traitement manuel.',ru:'Панель поставщика проверена: заказ не создан. Передать на ручную проверку.','zh-CN':'我已检查供应商面板：未创建订单。转为人工处理。'};for(const [locale,label] of Object.entries(notReceived))translations[locale].notReceived=label;
+const navigationLabels={en:['Home','Explore services'],fa:['صفحه اصلی','مشاهده خدمات'],ar:['الرئيسية','استعرض الخدمات'],az:['Ana səhifə','Xidmətlərə bax'],tr:['Ana sayfa','Hizmetleri keşfet'],de:['Startseite','Dienste entdecken'],es:['Inicio','Explorar servicios'],fr:['Accueil','Voir les services'],ru:['Главная','Посмотреть услуги'],'zh-CN':['首页','浏览服务']};
+for(const [locale,[home,browse]] of Object.entries(navigationLabels))Object.assign(translations[locale],{home,browse});
 const authFragment=new URLSearchParams(location.hash.slice(1));if(authFragment.has('access_token')||authFragment.has('refresh_token'))history.replaceState(null,'',location.pathname+location.search+'#account');
 let lang='en',ready=false,state=null,adminState=null,authMode='login',tab='orders',catalog=[],busy=false,pendingOrder=null,nonce=null,noncePayload='',queue=Promise.resolve();
+if(['signup','recover'].includes(location.hash.slice(1)))authMode=location.hash.slice(1);
 const t=key=>translations[lang]?.[key]||translations.en[key]||key;
 const money=v=>new Intl.NumberFormat(lang,{style:'currency',currency:'USD'}).format(Number(v)/100);
 const labelService=id=>window.seraySocial?.label(id)||id;
@@ -34,12 +37,18 @@ function button(key,fn){const b=element('button',t(key));b.type='button';b.addEv
 function empty(list){list.append(element('p',t('empty')));}
 function card(list,title,lines=[],tag){const c=element('article',undefined,'sp-item');c.append(element('h4',title));if(tag)c.append(element('span',t(tag),'sp-tag'));for(const line of lines)c.append(element('p',line));list.append(c);return c;}
 function list(id,rows,fn){const root=$(id);root.replaceChildren();if(!rows.length)empty(root);else rows.forEach(r=>fn(root,r));}
-function authTab(mode){authMode=mode;document.querySelectorAll('[data-auth-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.authTab===mode)));$('sp-password-field').hidden=mode==='recover';$('sp-password').disabled=mode==='recover';$('sp-password').autocomplete=mode==='signup'?'new-password':'current-password';$('sp-password-note').hidden=mode==='recover';$('sp-auth-submit').textContent=t(mode);}
+function pageTitle(){const view=document.body.dataset.siteView||'home';const heading=view==='account'?t(state?'account':authMode):$(view)?.querySelector('.kicker')?.textContent||t('home');if($('site-view-title'))$('site-view-title').textContent=heading;document.title=view==='home'?'SERAY Digital Studio — Websites & Web Apps':heading+' | SERAY Digital Studio';}
+function openAccount(){window.serayNavigate?.(state?'#account':'#login');}
+function authTab(mode){authMode=mode;document.querySelectorAll('[data-auth-tab]').forEach(b=>{const selected=b.dataset.authTab===mode;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;});$('sp-password-field').hidden=mode==='recover';$('sp-password').disabled=mode==='recover';$('sp-password').autocomplete=mode==='signup'?'new-password':'current-password';$('sp-password-note').hidden=mode==='recover';$('sp-auth-submit').textContent=t(mode);$('sp-heading').dataset.sp=state?'account':mode;$('sp-heading').textContent=t(state?'account':mode);pageTitle();}
 function switchTab(name){tab=name;document.querySelectorAll('[data-sp-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.spTab===name)));document.querySelectorAll('[data-sp-view]').forEach(v=>v.hidden=v.dataset.spView!==name);if(name==='admin'&&!adminState)run(null,async()=>{adminState=await api('admin');renderAdmin();status('');});}
 function render(){
  $('sp-setup').hidden=ready;$('sp-auth').hidden=!ready||Boolean(state);$('sp-dashboard').hidden=!state;$('sp-user-actions').hidden=!state;authTab(authMode);
- const headerAccount=$('header-account-link'),headerLogout=$('header-logout');
- if(headerAccount){headerAccount.dataset.sp=state?'account':'login';headerAccount.textContent=t(state?'account':'login');headerAccount.setAttribute('aria-label',t(state?'account':'login'));}
+ const headerAccount=$('header-account-link'),headerLogout=$('header-logout'),headerLabel=$('header-account-label'),avatar=$('header-account-avatar');
+ if(headerAccount){headerAccount.href=state?'#account':'#login';headerAccount.setAttribute('aria-label',t(state?'account':'login'));headerAccount.title=state?.user.email||t('login');}
+ if(headerLabel){headerLabel.dataset.sp=state?'account':'login';headerLabel.textContent=t(state?'account':'login');}
+ if($('header-account-name')){$('header-account-name').hidden=!state;$('header-account-name').textContent=state?.user.email.split('@')[0]||'';}
+ if(avatar){avatar.hidden=!state;avatar.textContent=state?.user.email.slice(0,2).toUpperCase()||'';}
+ if($('header-signup'))$('header-signup').hidden=Boolean(state);
  if(headerLogout)headerLogout.hidden=!state;
  if(!state){updatePaid();return;}
  $('sp-email-label').textContent=state.user.email;$('sp-admin-tab').hidden=!state.user.isAdmin;if(tab==='admin'&&!state.user.isAdmin)tab='orders';
@@ -51,7 +60,7 @@ function render(){
  switchTab(tab);if(adminState)renderAdmin();updatePaid();
 }
 async function refresh(){state=await api('dashboard');adminState=null;render();}
-function translate(){const selected=window.__sdgLanguage||document.documentElement.lang;lang=translations[selected]?selected:'en';document.querySelectorAll('[data-sp]').forEach(e=>e.textContent=t(e.dataset.sp));render();}
+function translate(){const selected=window.__sdgLanguage||document.documentElement.lang;lang=translations[selected]?selected:'en';document.querySelectorAll('[data-sp]').forEach(e=>e.textContent=t(e.dataset.sp));document.querySelectorAll('[data-route-text]').forEach(e=>e.textContent=t(e.dataset.routeText));render();}
 // Admin controls are created with textContent. User text is never injected as HTML.
 function adminSection(title){const details=element('details'),summary=element('summary',t(title)),root=element('div',undefined,'sp-list');details.append(summary,root);$('sp-admin').append(details);return root;}
 function inputLabel(form,key,type='text',value='',options){const label=element('label'),input=element(options?'select':'input');label.append(element('span',t(key)));if(options){for(const [v,name] of options)input.add(new Option(name,v));}else input.type=type;if(options&&value==='')input.selectedIndex=0;else input.value=value;label.append(input);form.append(label);return input;}
@@ -86,19 +95,18 @@ function selection(){return window.seraySocial?.read();}
 function cost(s,q){return Math.ceil(Number(s.rate_minor)*q/s.pricing_unit);}
 function updatePaid(){const data=selection(),s=catalog.find(s=>s.id===data?.serviceId),b=$('sp-paid-button');if(!b)return;$('sp-paid').hidden=!ready;b.disabled=busy;const hint=$('sp-paid-hint');if(!s){hint.textContent=t('unavailable');b.disabled=true;}else{const quantity=data.quantity;hint.textContent=money(s.rate_minor)+' / '+s.pricing_unit+' · '+t('range')+': '+s.min_quantity+'–'+s.max_quantity+(Number.isSafeInteger(quantity)&&quantity>0?' · '+t('charge')+': '+money(cost(s,quantity)):'');}b.textContent=t('paidOrder');}
 $('sp-paid-button')?.addEventListener('click',()=>{
- if(!state){status('loginFirst');$('account').scrollIntoView({behavior:'smooth',block:'start'});return;}
+ if(!state){status('loginFirst');openAccount();return;}
  if(!window.seraySocial?.validate(false))return;
  const d=selection(),s=catalog.find(s=>s.id===d?.serviceId);if(!s)return;
- if(!Number.isSafeInteger(d.quantity)||d.quantity<s.min_quantity||d.quantity>s.max_quantity){status('invalidQuantity',true);$('account').scrollIntoView({block:'start'});return;}
- const charge=cost(s,d.quantity);if(charge>Number(state.wallet.balance_minor)){switchTab('wallet');status('insufficient',true);$('account').scrollIntoView({block:'start'});return;}
+ if(!Number.isSafeInteger(d.quantity)||d.quantity<s.min_quantity||d.quantity>s.max_quantity){status('invalidQuantity',true);openAccount();return;}
+ const charge=cost(s,d.quantity);if(charge>Number(state.wallet.balance_minor)){switchTab('wallet');status('insufficient',true);openAccount();return;}
  const signature=JSON.stringify(d);if(signature!==noncePayload||!nonce){nonce=crypto.randomUUID();noncePayload=signature;}
  pendingOrder={...d,expectedCharge:charge,requestKey:nonce};$('sp-confirm-summary').textContent=labelService(d.serviceId)+' · '+new Intl.NumberFormat(lang).format(d.quantity)+'\n'+d.link;$('sp-confirm-price').textContent=money(charge);$('sp-confirm').showModal();
 });
 $('sp-confirm-cancel').addEventListener('click',()=>$('sp-confirm').close());
-$('sp-confirm-pay').addEventListener('click',()=>run($('sp-confirm-pay'),async()=>{if(!pendingOrder)return;try{await api('order',pendingOrder);nonce=null;noncePayload='';pendingOrder=null;$('sp-confirm').close();tab='orders';await refresh();status('done');$('account').scrollIntoView({block:'start'});}catch(e){$('sp-confirm').close();if(e.code==='PRICE_CHANGED')catalog=(await api('catalog')).services;throw e;}}));
-$('sp-auth-form').addEventListener('submit',e=>{e.preventDefault();run($('sp-auth-submit'),async()=>{const result=await api(authMode,{email:$('sp-email').value,password:$('sp-password').value});$('sp-password').value='';if(authMode==='recover')status('resetSent');else if(authMode==='signup'&&result.checkEmail)status('verify');else{await refresh();status('');}});});
-const logout=button=>run(button,async()=>{await api('logout');state=null;adminState=null;pendingOrder=null;nonce=null;noncePayload='';render();status('');});
-$('sp-logout').addEventListener('click',()=>logout($('sp-logout')));
+$('sp-confirm-pay').addEventListener('click',()=>run($('sp-confirm-pay'),async()=>{if(!pendingOrder)return;try{await api('order',pendingOrder);nonce=null;noncePayload='';pendingOrder=null;$('sp-confirm').close();tab='orders';await refresh();status('done');openAccount();}catch(e){$('sp-confirm').close();if(e.code==='PRICE_CHANGED')catalog=(await api('catalog')).services;openAccount();throw e;}}));
+$('sp-auth-form').addEventListener('submit',e=>{e.preventDefault();run($('sp-auth-submit'),async()=>{const result=await api(authMode,{email:$('sp-email').value.trim(),password:$('sp-password').value});$('sp-password').value='';if(authMode==='recover')status('resetSent');else if(authMode==='signup'&&result.checkEmail)status('verify');else{await refresh();status('');window.serayNavigate?.('#account',true);}});});
+const logout=button=>run(button,async()=>{await api('logout');state=null;adminState=null;pendingOrder=null;nonce=null;noncePayload='';$('sp-email-label').textContent='';authMode='login';render();status('');window.serayNavigate?.('#home');});
 $('header-logout')?.addEventListener('click',()=>logout($('header-logout')));
 $('sp-refresh').addEventListener('click',()=>run($('sp-refresh'),async()=>{catalog=(await api('catalog')).services;await refresh();status('');}));
 $('sp-topup-form').addEventListener('submit',e=>{e.preventDefault();run(e.submitter,async()=>{await api('topup',{amountMinor:Math.round(Number($('sp-topup-amount').value)*100),reference:$('sp-topup-reference').value});e.target.reset();await refresh();status('done');});});
@@ -106,7 +114,8 @@ $('sp-ticket-form').addEventListener('submit',e=>{e.preventDefault();run(e.submi
 $('sp-password-form').addEventListener('submit',e=>{e.preventDefault();run(e.submitter,async()=>{if($('sp-new-password').value!==$('sp-repeat-password').value){const error=new Error();error.code='PASSWORD_MISMATCH';throw error;}await api('password',{password:$('sp-new-password').value});e.target.reset();status('done');});});
 // Accessible tabs: roving focus, arrows, Home and End.
 function tabs(selector,onChange){const nodes=[...document.querySelectorAll(selector)];nodes.forEach(b=>{b.setAttribute('role','tab');b.tabIndex=b.getAttribute('aria-selected')==='true'?0:-1;b.addEventListener('click',()=>{onChange(b);nodes.forEach(x=>x.tabIndex=x===b?0:-1);});b.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const visible=nodes.filter(x=>!x.hidden),i=visible.indexOf(b);const next=visible[e.key==='Home'?0:e.key==='End'?visible.length-1:(i+(e.key==='ArrowRight'?1:-1)+visible.length)%visible.length];next.focus();next.click();});});}
-tabs('[data-auth-tab]',b=>authTab(b.dataset.authTab));tabs('[data-sp-tab]',b=>switchTab(b.dataset.spTab));
+tabs('[data-auth-tab]',b=>{status('');authTab(b.dataset.authTab);window.serayNavigate?.('#'+b.dataset.authTab,true);});tabs('[data-sp-tab]',b=>switchTab(b.dataset.spTab));
+document.addEventListener('seray:navigate',e=>{if(e.detail.page==='account'&&!state){const mode=['login','signup','recover'].includes(e.detail.anchor)?e.detail.anchor:'login';if(mode!==authMode){status('');$('sp-password').value='';}authTab(mode);}pageTitle();});
 document.querySelectorAll('.flag-button').forEach(b=>b.addEventListener('click',()=>queueMicrotask(translate)));
 document.addEventListener('seray:selection',updatePaid);translate();
 async function boot(){
@@ -115,7 +124,7 @@ async function boot(){
   if(access&&refreshToken){history.replaceState(null,'',location.pathname+location.search+'#account');await api('session',{access_token:access,refresh_token:refreshToken});if(recovery)tab='settings';}
   catalog=(await api('catalog')).services;
   try{await refresh();}catch(e){if(e.code!=='LOGIN_REQUIRED')throw e;state=null;}
-  render();if(access)$('account').scrollIntoView({block:'start'});
+  render();if(access||(state&&['login','signup','recover'].includes(location.hash.slice(1))))window.serayNavigate?.('#account',true);
  }catch(e){err(e);render();}
 }
 boot();
