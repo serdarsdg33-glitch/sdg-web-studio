@@ -1,0 +1,10 @@
+[build]
+  command = "node seray-build.cjs"
+  publish = "seray-public"
+  functions = "netlify/functions"
+[build.environment]
+  NODE_VERSION = "22"
+[[redirects]]
+  from = "/"
+  to = "/serdar-web-studio-standalone.html"
+  status = 200
